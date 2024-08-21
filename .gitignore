@@ -19,3 +19,13 @@
 
 # Go workspace file
 go.work
+
+
+# IDEA
+.idea/
+
+
+
+# ENV
+.env
+

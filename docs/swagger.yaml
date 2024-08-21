@@ -1,0 +1,257 @@
+basePath: /
+definitions:
+  domain.BalanceOutput:
+    properties:
+      current:
+        type: number
+      withdrawn:
+        type: number
+    type: object
+  domain.Order:
+    properties:
+      accrual:
+        type: number
+      number:
+        type: string
+      status:
+        $ref: '#/definitions/domain.OrderStatus'
+      uploaded_at:
+        type: string
+    type: object
+  domain.OrderStatus:
+    enum:
+    - NEW
+    - PROCESSING
+    - REGISTERED
+    - INVALID
+    - PROCESSED
+    type: string
+    x-enum-varnames:
+    - NewOrder
+    - Processing
+    - Registered
+    - Invalid
+    - Processed
+  domain.SighUpAndInInput:
+    properties:
+      login:
+        minLength: 2
+        type: string
+      password:
+        minLength: 4
+        type: string
+    required:
+    - login
+    - password
+    type: object
+  domain.Withdraw:
+    properties:
+      order:
+        type: string
+      processed_at:
+        type: string
+      sum:
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Накопительная система баллов лояльности. Система использует регистрацию
+    и авторизацию пользователей. Занимается хранением и списанием баллов, параллельно
+    обрабатывая номера заказов, путем обращения к стороннему источнику.
+  title: Накопительная система лояльности «Гофермарт»
+  version: "1.0"
+paths:
+  /api/user/balance:
+    get:
+      description: Выводит сумму баллов лояльности и использованных за весь период
+        регистрации баллов пользователя.
+      operationId: balance
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.BalanceOutput'
+        "401":
+          description: Status Unauthorized
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: Balance
+      tags:
+      - balance
+  /api/user/balance/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: Реализует списание бонусов пользователя в учет суммы нового заказа.
+      operationId: withdraw
+      parameters:
+      - description: Запрос параметров списания
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Withdraw'
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Status Unauthorized
+        "402":
+          description: Status Payment Required
+        "422":
+          description: Status Unprocessable Entity
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: Withdraw
+      tags:
+      - withdraw
+  /api/user/login:
+    post:
+      consumes:
+      - application/json
+      description: Отвечает за аутентификацию пользователя по логину и паролю. Проверяет
+        наличие токена.
+      operationId: login
+      parameters:
+      - description: account info
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.SighUpAndInInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+      summary: SighIn
+      tags:
+      - auth
+  /api/user/orders:
+    get:
+      description: Выводит отсортированный по дате список заказов пользователя.
+      operationId: get all orders
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Order'
+            type: array
+        "204":
+          description: Status No Content
+        "401":
+          description: Status Unauthorized
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: GetAllOrders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Загружает номер заказа в систему.
+      operationId: add order ID
+      parameters:
+      - description: order ID
+        in: body
+        name: input
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Status OK
+        "202":
+          description: Status Accepted
+        "400":
+          description: Bad Request
+        "401":
+          description: Status Unauthorized
+        "409":
+          description: Conflict
+        "422":
+          description: Status Unprocessable Entity
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: OrderUploading
+      tags:
+      - orders
+  /api/user/register:
+    post:
+      consumes:
+      - application/json
+      description: Отвечает за регистрацию пользователя по логину и паролю. Автоматически
+        производит аутентификацию.
+      operationId: create-account
+      parameters:
+      - description: account info
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.SighUpAndInInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "409":
+          description: Conflict
+        "500":
+          description: Internal Server Error
+      summary: SighUp
+      tags:
+      - auth
+  /api/user/withdrawals:
+    get:
+      description: Выводит отсортированный по дате список списаний бонусов пользователя.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/domain.Withdraw'
+              type: array
+            type: array
+        "204":
+          description: Status No Content
+        "401":
+          description: Status Unauthorized
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: Withdrawals
+      tags:
+      - withdraw
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
